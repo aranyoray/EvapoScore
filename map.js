@@ -16,29 +16,7 @@ const climateCache = new Map();
 function initMap() {
     map = new maplibregl.Map({
         container: 'map',
-        style: {
-            version: 8,
-            glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
-            sources: {
-                'osm': {
-                    type: 'raster',
-                    tiles: [
-                        'https://a.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        'https://b.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                        'https://c.tile.openstreetmap.org/{z}/{x}/{y}.png'
-                    ],
-                    tileSize: 256,
-                    attribution: '© OpenStreetMap contributors'
-                }
-            },
-            layers: [{
-                id: 'osm',
-                type: 'raster',
-                source: 'osm',
-                minzoom: 0,
-                maxzoom: 19
-            }]
-        },
+        style: 'https://demotiles.maplibre.org/style.json',
         center: [20, 20],
         zoom: 2,
         attributionControl: true
