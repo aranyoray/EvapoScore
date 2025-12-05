@@ -264,3 +264,5 @@ brew install ollama
 ## Contributing
 
 Pull requests welcome! Please ensure code follows the existing structure and includes TypeScript types.
+
+# EvapoScore
