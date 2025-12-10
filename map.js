@@ -159,13 +159,27 @@ async function loadCitiesData() {
                 `Analyzing ${city.name} (${i + 1}/${capitalCities.length})...`;
 
             const climate = estimateClimateData(city.lat, city.lon);
-            const power = evapCalc.estimatePowerFromClimateaverages(climate);
+
+            // Use measured data if available, otherwise calculate
+            let power, minPower, maxPower, stdDev;
+            if (city.measuredData) {
+                power = city.measuredData.meanPower;
+                minPower = city.measuredData.minPower;
+                maxPower = city.measuredData.maxPower;
+                stdDev = city.measuredData.stdDev;
+            } else {
+                power = evapCalc.estimatePowerFromClimateaverages(climate);
+            }
+
             const category = evapCalc.getPowerCategory(power);
 
             citiesData.push({
                 ...city,
                 climate: climate,
                 power: power,
+                minPower: minPower,
+                maxPower: maxPower,
+                stdDev: stdDev,
                 category: category
             });
 
@@ -208,11 +222,24 @@ function createMarkers() {
         el.style.transition = 'all 0.2s ease';
 
         // Create popup content with more detail
+        const measuredDataSection = city.measuredData ? `
+            <div style="background: rgba(255, 215, 0, 0.1); padding: 10px; border-radius: 6px; margin-bottom: 10px; border: 1px solid rgba(255, 215, 0, 0.3);">
+                <p style="margin: 5px 0; font-size: 12px; color: #ffd700; font-weight: bold;">📊 ${city.measuredData.source}</p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; font-size: 11px; margin-top: 6px;">
+                    <p>Min: ${city.minPower.toFixed(1)} W/m²</p>
+                    <p>Max: ${city.maxPower.toFixed(1)} W/m²</p>
+                    <p>Mean: ${city.power.toFixed(1)} W/m²</p>
+                    <p>Std Dev: ${city.stdDev.toFixed(1)} W/m²</p>
+                </div>
+            </div>
+        ` : '';
+
         const popupContent = `
             <div style="min-width: 280px;">
                 <h3 style="margin-bottom: 12px; font-size: 18px; border-bottom: 2px solid ${city.category.color}; padding-bottom: 8px;">
                     ${city.name}, ${city.country}
                 </h3>
+                ${measuredDataSection}
                 <div style="background: rgba(102, 126, 234, 0.1); padding: 10px; border-radius: 6px; margin-bottom: 10px;">
                     <p style="margin: 5px 0; font-size: 16px;"><strong>Power Potential:</strong> <span style="color: ${city.category.color}; font-weight: bold;">${city.power.toFixed(1)} W/m²</span></p>
                     <p style="margin: 5px 0;"><strong>Rating:</strong> ${city.category.label}</p>

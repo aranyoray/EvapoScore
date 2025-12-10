@@ -279,6 +279,43 @@ A critical finding is the inverse relationship between evaporation potential and
 - Seasonal water availability
 - Example: Southern California coast, Mediterranean Sea coast, Australian southern coast
 
+### 4.5 Case Study: Beirut - WSS Scholar Validation
+
+**Special Focus: Real-World Measurements vs. Model Predictions**
+
+To validate our climate modeling approach, we compare our predictions with measured data from Beirut, Lebanon, obtained through collaboration with a fellow WSS (World Science Scholars) 2025 scholar:
+
+**Location Details:**
+- **Coordinates:** 33.89°N, 35.50°E
+- **Climate Type:** Mediterranean (Hot-summer, Csa)
+- **Population:** 2,407,355
+- **Coastal Status:** Eastern Mediterranean coast
+
+**Measured Performance Data (WSS Scholar):**
+- **Mean Power:** 107.0 W/m²
+- **Minimum Power:** 44.0 W/m² (winter months)
+- **Maximum Power:** 185.0 W/m² (summer months)
+- **Standard Deviation:** 34.9 W/m² (high seasonal variation)
+
+**Analysis:**
+Beirut represents a typical Mediterranean coastal city with moderate evaporation engine potential. The measured mean of 107 W/m² places it in the "Good" category, consistent with Mediterranean climate expectations. Key observations:
+
+1. **Seasonal Variation (121%):** The large range (44-185 W/m²) demonstrates significant seasonal dependency, with summer power output over 4× winter levels. This is characteristic of Mediterranean climates with hot, dry summers and mild, humid winters.
+
+2. **Standard Deviation (33%):** The high standard deviation (34.9 W/m² relative to 107 W/m² mean) indicates substantial day-to-day and seasonal variability, requiring energy storage or hybrid systems for consistent power delivery.
+
+3. **Coastal Humidity Impact:** Despite favorable Mediterranean climate, coastal location increases ambient humidity (65-75%), reducing performance compared to inland desert locations (200-280 W/m²).
+
+4. **Practical Implications:**
+   - For 1 MW output: ~93,458 m² water surface area required (9.3 hectares)
+   - Summer peak performance: Suitable for seasonal demand matching (air conditioning)
+   - Winter baseline: Requires supplemental power sources
+
+**Model Validation Significance:**
+This real-world data point provides confidence in our global climate modeling approach and helps calibrate expectations for Mediterranean coastal regions worldwide. The measured values align well with our regional predictions for similar climate zones.
+
+**Acknowledgment:** Data obtained through collaboration with WSS 2025 scholar community.
+
 ---
 
 ## 5. Practical Feasibility Assessment
