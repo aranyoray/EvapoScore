@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>US County Energy Analysis - EvaScore</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='0.9em' font-size='90'%3E⚡%3C/text%3E%3C/svg%3E">
+    <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+        }
+
+        #map {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 100%;
+        }
+
+        .header {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 400px;
+            z-index: 1;
+            background: rgba(26, 26, 46, 0.95);
+            padding: 20px 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+        }
+
+        .header h1 {
+            font-size: 26px;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #006d2c 0%, #41ab5d 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            font-size: 13px;
+            color: #aaa;
+            line-height: 1.5;
+        }
+
+        .mode-selector {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 1;
+            background: rgba(26, 26, 46, 0.95);
+            padding: 15px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+            min-width: 200px;
+        }
+
+        .mode-selector h3 {
+            font-size: 14px;
+            margin-bottom: 12px;
+            color: #fff;
+        }
+
+        .mode-btn {
+            display: block;
+            width: 100%;
+            padding: 10px 15px;
+            margin-bottom: 8px;
+            border: 2px solid #006d2c;
+            background: rgba(0, 109, 44, 0.2);
+            color: #006d2c;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+            text-align: left;
+        }
+
+        .mode-btn:hover {
+            background: #006d2c;
+            color: white;
+            transform: translateX(5px);
+        }
+
+        .mode-btn.active {
+            background: #006d2c;
+            color: white;
+        }
+
+        .legend {
+            position: absolute;
+            bottom: 150px;
+            right: 20px;
+            background: rgba(26, 26, 46, 0.95);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            z-index: 1;
+            min-width: 220px;
+            backdrop-filter: blur(10px);
+        }
+
+        .legend h3 {
+            margin-bottom: 15px;
+            font-size: 16px;
+            color: #fff;
+        }
+
+        .legend-gradient {
+            height: 200px;
+            width: 30px;
+            background: linear-gradient(to top,
+                #f7fcf5 0%,
+                #e5f5e0 20%,
+                #c7e9c0 40%,
+                #a1d99b 50%,
+                #74c476 60%,
+                #41ab5d 80%,
+                #006d2c 100%
+            );
+            border-radius: 4px;
+            margin-bottom: 10px;
+        }
+
+        .legend-labels {
+            font-size: 11px;
+            color: #aaa;
+        }
+
+        .legend-labels div {
+            display: flex;
+            justify-content: space-between;
+            margin: 3px 0;
+        }
+
+        .info-panel {
+            position: absolute;
+            bottom: 30px;
+            left: 20px;
+            background: rgba(26, 26, 46, 0.95);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            z-index: 1;
+            max-width: 300px;
+            backdrop-filter: blur(10px);
+        }
+
+        .info-panel h3 {
+            margin-bottom: 12px;
+            font-size: 16px;
+            color: #fff;
+        }
+
+        .info-panel p {
+            font-size: 13px;
+            color: #bbb;
+            line-height: 1.6;
+            margin-bottom: 8px;
+        }
+
+        .stat-value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #41ab5d;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(26, 26, 46, 0.95);
+            padding: 30px 50px;
+            border-radius: 12px;
+            z-index: 1000;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(10px);
+        }
+
+        .loading-spinner {
+            border: 4px solid rgba(0, 109, 44, 0.3);
+            border-top: 4px solid #006d2c;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading p {
+            color: #aaa;
+            font-size: 14px;
+        }
+
+        .time-control {
+            position: absolute;
+            top: 50%;
+            right: 250px;
+            transform: translateY(-50%);
+            background: rgba(26, 26, 46, 0.95);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+            z-index: 2;
+            min-width: 60px;
+            backdrop-filter: blur(10px);
+        }
+
+        .time-slider-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .time-slider-vertical {
+            writing-mode: bt-lr;
+            -webkit-appearance: slider-vertical;
+            width: 8px;
+            height: 300px;
+            padding: 0;
+            margin: 10px 0;
+        }
+
+        .time-slider-vertical::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #006d2c;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 109, 44, 0.5);
+        }
+
+        .time-slider-vertical::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #006d2c;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 8px rgba(0, 109, 44, 0.5);
+        }
+
+        .time-slider-vertical::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 8px;
+            background: linear-gradient(to top, #4575b4 0%, #006d2c 50%, #ffa500 100%);
+            border-radius: 4px;
+        }
+
+        .time-slider-vertical::-moz-range-track {
+            width: 100%;
+            height: 8px;
+            background: linear-gradient(to top, #4575b4 0%, #006d2c 50%, #ffa500 100%);
+            border-radius: 4px;
+        }
+
+        .time-btn {
+            background: rgba(0, 109, 44, 0.2);
+            border: 1px solid #006d2c;
+            color: #006d2c;
+            padding: 8px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .time-btn:hover {
+            background: #006d2c;
+            color: white;
+            transform: scale(1.1);
+        }
+
+        .time-label {
+            font-size: 11px;
+            color: #999;
+            text-align: center;
+            margin: 5px 0;
+        }
+
+        .now-btn {
+            background: rgba(255, 165, 0, 0.2);
+            border: 1px solid #ffa500;
+            color: #ffa500;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: all 0.2s;
+            margin-top: 10px;
+        }
+
+        .now-btn:hover {
+            background: #ffa500;
+            color: white;
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(26, 26, 46, 0.95);
+            padding: 8px 20px;
+            border-radius: 8px 8px 0 0;
+            z-index: 1;
+            font-size: 11px;
+            color: #888;
+            backdrop-filter: blur(10px);
+            text-align: center;
+        }
+
+        .footer a {
+            color: #41ab5d;
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            color: #74c476;
+        }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loading">
+        <div class="loading-spinner"></div>
+        <p>Loading US county energy data...</p>
+    </div>
+
+    <div class="header">
+        <h1>⚡ US County Energy Analysis - EvaScore</h1>
+        <p>Comprehensive energy demand, supply, deficit, and price analysis for US counties. Includes renewable/non-renewable breakdown, 10-year projections, and recommendations.</p>
+        <p style="font-size: 12px; color: #999; margin-top: 8px;">Created by <strong style="color: #41ab5d;">Ameya Meattle</strong>, WSS 2025 Scholar</p>
+    </div>
+
+    <div class="mode-selector">
+        <h3>Energy Source Mode</h3>
+        <button class="mode-btn active" id="mode-all" onclick="switchMode('all')">
+            🔋 All Sources
+        </button>
+        <button class="mode-btn" id="mode-renewable" onclick="switchMode('renewable')">
+            ♻️ Renewables Only
+        </button>
+        <button class="mode-btn" id="mode-nonrenewable" onclick="switchMode('nonrenewable')">
+            ⚫ Non-Renewables
+        </button>
+    </div>
+
+    <div id="map"></div>
+
+    <div class="time-control">
+        <div class="time-slider-container">
+            <div class="time-label" style="font-weight: bold; color: #ffa500;">FUTURE</div>
+            <button class="time-btn" onclick="nextMonth()" title="Next Month">▲</button>
+
+            <input
+                type="range"
+                id="timeSlider"
+                class="time-slider-vertical"
+                min="0"
+                max="120"
+                value="60"
+                step="1"
+                orient="vertical"
+                oninput="onTimeSliderChange(this.value)"
+            >
+
+            <button class="time-btn" onclick="previousMonth()" title="Previous Month">▼</button>
+            <div class="time-label" style="font-weight: bold; color: #4575b4;">PAST</div>
+
+            <button class="now-btn" onclick="jumpToNow()">📍 NOW</button>
+        </div>
+    </div>
+
+    <div class="legend">
+        <h3>Energy Supply</h3>
+        <div class="legend-gradient"></div>
+        <div class="legend-labels">
+            <div><span>High</span><span style="color: #006d2c;">■</span></div>
+            <div><span>Medium</span><span style="color: #74c476;">■</span></div>
+            <div><span>Low</span><span style="color: #e5f5e0;">■</span></div>
+        </div>
+        <p style="font-size: 10px; color: #666; margin-top: 10px;">Darker = Higher Supply</p>
+    </div>
+
+    <div class="info-panel">
+        <h3>📊 Current View</h3>
+        <p><strong>Month:</strong> <span class="stat-value" id="currentMonthLabel" style="font-size: 14px;">Loading...</span></p>
+        <p><strong>Mode:</strong> <span class="stat-value" id="currentMode" style="font-size: 14px;">ALL</span></p>
+        <p style="margin-top: 15px; font-size: 12px; color: #888;">Click counties for detailed analysis including EvaDemand, EvaSupply, EvaDeficit, and EvaPrice</p>
+    </div>
+
+    <div class="footer">
+        © 2025 <a href="https://github.com/aranyoray" target="_blank">Ameya Meattle</a>, WSS 2025 Scholar | US Energy Analysis
+    </div>
+
+    <script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+    <script src="evaporation-calc.js"></script>
+    <script src="eia-data-fetcher.js"></script>
+    <script src="energy-price-predictor.js"></script>
+    <script src="us-county-map.js"></script>
+</body>
+</html>
