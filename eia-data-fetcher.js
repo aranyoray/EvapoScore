@@ -6,33 +6,135 @@
 
 class EIADataFetcher {
     constructor() {
-        // EIA Open Data API - No key required for basic access
+        // EIA Open Data API v2
         this.baseURL = 'https://api.eia.gov/v2';
-        // Alternative: Use pre-downloaded datasets for reliability
-        this.useLocalData = true;
+        this.apiKey = 'gylPkKfodUGvd0cq4Lgf1yivJYIfKH6093IAks4A';
+        // Use real API data
+        this.useLocalData = false;
+        this.cache = new Map();
     }
 
     /**
-     * Fetch state-level electricity generation by source
+     * Fetch state-level electricity generation by source using real EIA API
      * @param {string} state - State abbreviation (e.g., 'CA', 'TX')
      * @param {string} startDate - Start date (YYYY-MM)
      * @param {string} endDate - End date (YYYY-MM)
      */
     async fetchStateGeneration(state, startDate, endDate) {
-        // Data categories from EIA:
-        // - Coal (COW)
-        // - Natural Gas (NG)
-        // - Nuclear (NUC)
-        // - Petroleum (OIL)
-        // - Solar (SUN)
-        // - Wind (WND)
-        // - Hydro (WAT)
-        // - Geothermal (GEO)
-        // - Other (OTH)
+        // Check cache first
+        const cacheKey = `${state}_${startDate}_${endDate}`;
+        if (this.cache.has(cacheKey)) {
+            return this.cache.get(cacheKey);
+        }
 
-        // For demo: Using estimated state-level data
-        // In production: Use EIA API with API key
-        return this.estimateStateGeneration(state, startDate, endDate);
+        if (this.useLocalData) {
+            // Fallback to estimates if API is unavailable
+            return this.estimateStateGeneration(state, startDate, endDate);
+        }
+
+        try {
+            // Fetch real EIA data
+            const data = await this.fetchRealEIAData(state, startDate, endDate);
+            this.cache.set(cacheKey, data);
+            return data;
+        } catch (error) {
+            console.warn(`EIA API error for ${state}, using estimates:`, error.message);
+            // Fallback to estimates
+            return this.estimateStateGeneration(state, startDate, endDate);
+        }
+    }
+
+    /**
+     * Fetch real data from EIA API v2
+     */
+    async fetchRealEIAData(state, startDate, endDate) {
+        // EIA API endpoint for electricity generation by state and fuel source
+        // Endpoint: /electricity/electric-power-operational-data/data/
+        const endpoint = `${this.baseURL}/electricity/electric-power-operational-data/data/`;
+
+        const params = new URLSearchParams({
+            'api_key': this.apiKey,
+            'frequency': 'monthly',
+            'data[0]': 'generation',
+            'facets[location][]': state,
+            'start': startDate,
+            'end': endDate,
+            'sort[0][column]': 'period',
+            'sort[0][direction]': 'asc',
+            'offset': 0,
+            'length': 5000
+        });
+
+        const response = await fetch(`${endpoint}?${params}`);
+
+        if (!response.ok) {
+            throw new Error(`EIA API HTTP ${response.status}`);
+        }
+
+        const jsonData = await response.json();
+
+        if (!jsonData.response || !jsonData.response.data) {
+            throw new Error('Invalid EIA API response format');
+        }
+
+        // Parse EIA response and organize by month and fuel type
+        return this.parseEIAResponse(jsonData.response.data);
+    }
+
+    /**
+     * Parse EIA API response into our format
+     */
+    parseEIAResponse(apiData) {
+        const monthlyData = {};
+
+        // Group by period (month) and fueltype
+        for (const record of apiData) {
+            const month = record.period; // Format: YYYY-MM
+            const fuelType = record.fueltype;
+            const generation = parseFloat(record.generation) || 0; // In thousand MWh
+
+            if (!monthlyData[month]) {
+                monthlyData[month] = {
+                    coal: 0,
+                    gas: 0,
+                    nuclear: 0,
+                    solar: 0,
+                    wind: 0,
+                    hydro: 0,
+                    geothermal: 0,
+                    oil: 0
+                };
+            }
+
+            // Map EIA fuel types to our categories
+            const fuelMap = {
+                'COW': 'coal',
+                'NG': 'gas',
+                'NUC': 'nuclear',
+                'SUN': 'solar',
+                'WND': 'wind',
+                'WAT': 'hydro',
+                'GEO': 'geothermal',
+                'PEL': 'oil',
+                'DFO': 'oil',
+                'RFO': 'oil'
+            };
+
+            const ourFuelType = fuelMap[fuelType];
+            if (ourFuelType) {
+                monthlyData[month][ourFuelType] += generation;
+            }
+        }
+
+        // Calculate renewable and non-renewable totals
+        for (const month in monthlyData) {
+            const data = monthlyData[month];
+            data.renewable = data.solar + data.wind + data.hydro + data.geothermal;
+            data.nonRenewable = data.coal + data.gas + data.nuclear + data.oil;
+            data.total = data.renewable + data.nonRenewable;
+        }
+
+        return monthlyData;
     }
 
     /**

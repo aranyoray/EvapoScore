@@ -19,10 +19,34 @@ let countiesGeoJSON = null;
  * Initialize US County Map
  */
 async function initUSCountyMap() {
-    // Initialize MapLibre
+    // Initialize MapLibre with professional Carto Positron style
     map = new maplibregl.Map({
         container: 'map',
-        style: 'https://demotiles.maplibre.org/style.json',
+        style: {
+            version: 8,
+            sources: {
+                'carto-light': {
+                    type: 'raster',
+                    tiles: [
+                        'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+                        'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+                        'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png',
+                        'https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'
+                    ],
+                    tileSize: 256,
+                    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                }
+            },
+            layers: [
+                {
+                    id: 'carto-light-layer',
+                    type: 'raster',
+                    source: 'carto-light',
+                    minzoom: 0,
+                    maxzoom: 22
+                }
+            ]
+        },
         center: [-98.5795, 39.8283], // Geographic center of US
         zoom: 4,
         maxZoom: 10,
@@ -161,25 +185,105 @@ async function loadUSCountyData() {
 }
 
 /**
- * Load county demographics (simplified - in production: use Census API)
+ * Load county demographics from usCounties dataset
  */
 async function loadCountyDemographics() {
-    // Sample data for major counties
-    // In production: fetch from census.gov API
-    const sampleCounties = [
-        { fips: '06037', name: 'Los Angeles', state: 'CA', statePopulation: 39500000, population: 10040000, climate: { avgTemp: 18, avgHumidity: 0.65, avgWindSpeed: 3.5, avgSolarRadiation: 220 } },
-        { fips: '17031', name: 'Cook', state: 'IL', statePopulation: 12700000, population: 5150000, climate: { avgTemp: 10, avgHumidity: 0.7, avgWindSpeed: 4.2, avgSolarRadiation: 160 } },
-        { fips: '48201', name: 'Harris', state: 'TX', statePopulation: 29000000, population: 4700000, climate: { avgTemp: 21, avgHumidity: 0.72, avgWindSpeed: 3.8, avgSolarRadiation: 210 } },
-        { fips: '04013', name: 'Maricopa', state: 'AZ', statePopulation: 7279000, population: 4485000, climate: { avgTemp: 23, avgHumidity: 0.35, avgWindSpeed: 3.2, avgSolarRadiation: 280 } },
-        { fips: '06073', name: 'San Diego', state: 'CA', statePopulation: 39500000, population: 3338000, climate: { avgTemp: 17, avgHumidity: 0.68, avgWindSpeed: 3.1, avgSolarRadiation: 230 } },
-        { fips: '12086', name: 'Miami-Dade', state: 'FL', statePopulation: 21500000, population: 2717000, climate: { avgTemp: 25, avgHumidity: 0.75, avgWindSpeed: 4.5, avgSolarRadiation: 240 } },
-        { fips: '36047', name: 'Kings', state: 'NY', statePopulation: 19500000, population: 2560000, climate: { avgTemp: 13, avgHumidity: 0.68, avgWindSpeed: 4.8, avgSolarRadiation: 165 } },
-        { fips: '36061', name: 'New York', state: 'NY', statePopulation: 19500000, population: 1630000, climate: { avgTemp: 13, avgHumidity: 0.68, avgWindSpeed: 5.1, avgSolarRadiation: 165 } },
-        { fips: '06059', name: 'Orange', state: 'CA', statePopulation: 39500000, population: 3170000, climate: { avgTemp: 18, avgHumidity: 0.67, avgWindSpeed: 3.3, avgSolarRadiation: 225 } },
-        { fips: '48113', name: 'Dallas', state: 'TX', statePopulation: 29000000, population: 2620000, climate: { avgTemp: 19, avgHumidity: 0.64, avgWindSpeed: 4.1, avgSolarRadiation: 205 } }
-    ];
+    // Use the comprehensive US counties dataset
+    // Add climate estimates for each county
+    return usCounties.map(county => ({
+        fips: county.fips,
+        name: county.county,
+        city: county.city,
+        state: county.stateAbbr,
+        statePopulation: county.statePopulation,
+        population: county.countyPop,
+        cityPopulation: county.population,
+        lat: county.lat,
+        lon: county.lon,
+        climate: estimateClimateForCounty(county)
+    }));
+}
 
-    return sampleCounties;
+/**
+ * Estimate climate parameters for a county based on location
+ */
+function estimateClimateForCounty(county) {
+    const lat = county.lat;
+    const lon = county.lon;
+
+    // Base estimates by latitude
+    let avgTemp = 15 - (Math.abs(lat) - 35) * 0.6; // Cooler at higher latitudes
+    let avgHumidity = 0.65;
+    let avgWindSpeed = 3.5;
+    let avgSolarRadiation = 200;
+
+    // Regional adjustments
+    // Southwest (AZ, NM, NV, southern CA)
+    if (['AZ', 'NM', 'NV'].includes(county.state) ||
+        (county.state === 'CA' && lat < 36)) {
+        avgTemp += 5;
+        avgHumidity -= 0.25;
+        avgSolarRadiation += 60;
+    }
+
+    // Southeast (humid subtropical)
+    if (['FL', 'GA', 'SC', 'AL', 'MS', 'LA'].includes(county.state)) {
+        avgTemp += 8;
+        avgHumidity += 0.15;
+        avgSolarRadiation += 20;
+    }
+
+    // Great Plains (high solar, moderate wind)
+    if (['ND', 'SD', 'NE', 'KS', 'OK'].includes(county.state)) {
+        avgTemp -= 2;
+        avgHumidity -= 0.10;
+        avgWindSpeed += 1.5;
+        avgSolarRadiation += 30;
+    }
+
+    // Texas (varies)
+    if (county.state === 'TX') {
+        if (lat < 31) { // South Texas
+            avgTemp += 6;
+            avgHumidity += 0.05;
+        }
+        avgSolarRadiation += 25;
+    }
+
+    // Pacific Northwest (cloudy, mild)
+    if (['WA', 'OR'].includes(county.state)) {
+        avgTemp -= 3;
+        avgHumidity += 0.10;
+        avgSolarRadiation -= 60;
+        avgWindSpeed += 0.5;
+    }
+
+    // Mountain states (high elevation, low humidity)
+    if (['CO', 'UT', 'WY', 'MT', 'ID'].includes(county.state)) {
+        avgTemp -= 5;
+        avgHumidity -= 0.15;
+        avgSolarRadiation += 40;
+    }
+
+    // Northeast (four seasons)
+    if (['NY', 'PA', 'NJ', 'MA', 'CT', 'RI', 'VT', 'NH', 'ME'].includes(county.state)) {
+        avgTemp -= 5;
+        avgWindSpeed += 0.8;
+        avgSolarRadiation -= 30;
+    }
+
+    // Coastal adjustments
+    if (Math.abs(lon) > 80 && (lon < -70 || lon > -125)) { // Near coasts
+        avgHumidity += 0.08;
+        avgWindSpeed += 1.2;
+    }
+
+    return {
+        avgTemp: Math.max(-10, Math.min(35, avgTemp)),
+        avgHumidity: Math.max(0.2, Math.min(0.9, avgHumidity)),
+        avgWindSpeed: Math.max(1, Math.min(8, avgWindSpeed)),
+        avgSolarRadiation: Math.max(100, Math.min(320, avgSolarRadiation))
+    };
 }
 
 /**
