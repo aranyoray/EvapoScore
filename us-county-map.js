@@ -381,17 +381,23 @@ function showCountyPopup(county, monthKey, lngLat) {
 
     if (!metrics) return;
 
+    // Calculate per capita values (MWh to kWh conversion: × 1000)
+    const perCapitaDemand = (metrics.demand * 1000 / county.population).toFixed(1);
+    const perCapitaSupply = (metrics.supply.total * 1000 / county.population).toFixed(1);
+    const perCapitaDeficit = (metrics.deficit * 1000 / county.population).toFixed(1);
+
     const popupHTML = `
         <div style="min-width: 350px; max-width: 450px;">
             <h3 style="margin-bottom: 12px; font-size: 18px; color: #006d2c; border-bottom: 2px solid #006d2c; padding-bottom: 8px;">
                 ${county.name} County, ${county.state}
             </h3>
+            <p style="font-size: 11px; color: #666; margin-bottom: 10px;">Population: ${county.population.toLocaleString()}</p>
 
             <div style="background: rgba(0, 109, 44, 0.1); padding: 12px; border-radius: 8px; margin-bottom: 12px;">
-                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #333;">Energy Metrics</h4>
-                <p style="margin: 4px 0; font-size: 13px;"><strong>EvaDemand:</strong> ${metrics.demand.toFixed(0)} MWh/month</p>
-                <p style="margin: 4px 0; font-size: 13px;"><strong>EvaSupply:</strong> ${metrics.supply.total.toFixed(0)} MWh/month</p>
-                <p style="margin: 4px 0; font-size: 13px;"><strong>EvaDeficit:</strong> <span style="color: ${metrics.deficit > 0 ? '#d73027' : '#1a9850'};">${metrics.deficit > 0 ? '+' : ''}${metrics.deficit.toFixed(0)} MWh/month</span></p>
+                <h4 style="margin: 0 0 8px 0; font-size: 14px; color: #333;">Energy Metrics (Per Capita)</h4>
+                <p style="margin: 4px 0; font-size: 13px;"><strong>EvaDemand:</strong> ${metrics.demand.toFixed(0)} MWh/month <span style="color: #666;">(${perCapitaDemand} kWh/person/mo)</span></p>
+                <p style="margin: 4px 0; font-size: 13px;"><strong>EvaSupply:</strong> ${metrics.supply.total.toFixed(0)} MWh/month <span style="color: #666;">(${perCapitaSupply} kWh/person/mo)</span></p>
+                <p style="margin: 4px 0; font-size: 13px;"><strong>EvaDeficit:</strong> <span style="color: ${metrics.deficit > 0 ? '#d73027' : '#1a9850'};">${metrics.deficit > 0 ? '+' : ''}${metrics.deficit.toFixed(0)} MWh/month</span> <span style="color: #666;">(${perCapitaDeficit > 0 ? '+' : ''}${perCapitaDeficit} kWh/person/mo)</span></p>
                 <p style="margin: 4px 0; font-size: 13px;"><strong>EvaPrice:</strong> $${metrics.price.toFixed(2)}/kWh</p>
             </div>
 
